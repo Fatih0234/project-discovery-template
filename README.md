@@ -31,11 +31,10 @@ make example
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `GITHUB_TOKEN` | Recommended | GitHub API auth — without it you get 10 req/min |
-| `ANTHROPIC_API_KEY` | Optional | AI-powered synthesis (preferred) |
-| `OPENAI_API_KEY` | Optional | AI-powered synthesis (fallback) |
+| `GITHUB_TOKEN` | Recommended | GitHub search API + GitHub Models for AI summaries |
+| `GH_TOKEN` | — | Same as above — use this name in Codespaces secrets (GitHub blocks the `GITHUB_` prefix) |
 
-If no LLM key is set, a template-based summary is generated instead.
+One token does everything. If no token is set, GitHub rate-limits you to 10 req/min and summaries fall back to a template.
 
 ---
 

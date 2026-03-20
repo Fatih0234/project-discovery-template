@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .config import ANTHROPIC_API_KEY, OPENAI_API_KEY, detect_llm_provider
+from .config import GITHUB_TOKEN, GITHUB_MODELS_API, GITHUB_MODELS_MODEL, llm_available
 from .models import RepoDigest
 
 
@@ -37,7 +37,7 @@ Start with **{top.full_name if top else 'any of the above'}** — it has readabl
 """
 
 
-def _anthropic_summary(library: str, digests: list[RepoDigest]) -> str:
+def _github_models_summary(library: str, digests: list[RepoDigest]) -> str:
     import httpx
 
     digest_text = "\n\n".join(
@@ -56,47 +56,15 @@ def _anthropic_summary(library: str, digests: list[RepoDigest]) -> str:
     )
 
     r = httpx.post(
-        "https://api.anthropic.com/v1/messages",
+        f"{GITHUB_MODELS_API}/chat/completions",
         headers={
-            "x-api-key": ANTHROPIC_API_KEY or "",
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Content-Type": "application/json",
         },
         json={
-            "model": "claude-haiku-4-5-20251001",
+            "model": GITHUB_MODELS_MODEL,
             "max_tokens": 800,
             "messages": [{"role": "user", "content": prompt}],
-        },
-        timeout=60,
-    )
-    r.raise_for_status()
-    return r.json()["content"][0]["text"]
-
-
-def _openai_summary(library: str, digests: list[RepoDigest]) -> str:
-    import httpx
-
-    digest_text = "\n\n".join(
-        f"{d.full_name} (score={d.score:.2f}): {d.description or ''} | tags: {', '.join(d.use_case_tags)}"
-        for d in digests
-    )
-
-    r = httpx.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-        json={
-            "model": "gpt-4o-mini",
-            "max_tokens": 800,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": (
-                        f"Library: {library}\nTop repos:\n{digest_text}\n\n"
-                        f"Write a 300-word synthesis: common use-cases, patterns, junior tips, "
-                        f"mistakes to avoid, 3 next-project ideas. Use markdown headers."
-                    ),
-                }
-            ],
         },
         timeout=60,
     )
@@ -105,12 +73,9 @@ def _openai_summary(library: str, digests: list[RepoDigest]) -> str:
 
 
 def summarize(library: str, digests: list[RepoDigest]) -> str:
-    provider = detect_llm_provider()
-    try:
-        if provider == "anthropic":
-            return _anthropic_summary(library, digests)
-        if provider == "openai":
-            return _openai_summary(library, digests)
-    except Exception as e:
-        print(f"[warn] LLM summary failed ({e}), using template fallback")
+    if llm_available():
+        try:
+            return _github_models_summary(library, digests)
+        except Exception as e:
+            print(f"[warn] GitHub Models summary failed ({e}), using template fallback")
     return _template_summary(library, digests)

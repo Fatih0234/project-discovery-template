@@ -8,9 +8,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── API keys ──────────────────────────────────────────────────────────────────
+# GH_TOKEN is the Codespaces-injected name; GITHUB_TOKEN is the local .env name
 GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
-OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
-ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
+
+# GitHub Models API — same token, no extra key needed
+GITHUB_MODELS_API = "https://models.inference.ai.azure.com"
+GITHUB_MODELS_MODEL = "gpt-4o-mini"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 ROOT_DIR = Path(__file__).parents[2]  # project root (above src/)
@@ -34,9 +37,5 @@ def lib_report_dir(library: str) -> Path:
     return d
 
 
-def detect_llm_provider() -> str | None:
-    if ANTHROPIC_API_KEY:
-        return "anthropic"
-    if OPENAI_API_KEY:
-        return "openai"
-    return None
+def llm_available() -> bool:
+    return GITHUB_TOKEN is not None
