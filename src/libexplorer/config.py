@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── API keys ──────────────────────────────────────────────────────────────────
-GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
 OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
 
