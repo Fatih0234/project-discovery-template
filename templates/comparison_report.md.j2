@@ -1,0 +1,18 @@
+## Cross-Repo Comparison
+
+| Repo | Stars | Score | Use-cases | Files |
+|------|-------|-------|-----------|-------|
+{% for d in digests %}
+| [{{ d.full_name }}]({{ d.html_url }}) | {{ d.stars }} | {{ "%.3f" | format(d.score) }} | {{ d.use_case_tags | join(", ") or "—" }} | {{ d.matched_files | length }} |
+{% endfor %}
+
+### Score Breakdown Legend
+
+| Dimension | Weight | Notes |
+|-----------|--------|-------|
+| Evidence | 35% | Import/decorator/call counts found via code search |
+| Learnability | 20% | Number of distinct files using the library |
+| Quality | 15% | License, topics, and issue activity |
+| Recency | 10% | How recently the repo was pushed to |
+| Popularity | 10% | Log-scaled star count |
+| README | 10% | Whether the README mentions the library |

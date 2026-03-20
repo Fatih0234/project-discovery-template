@@ -1,0 +1,25 @@
+### {{ digest.full_name }}
+
+| Field | Value |
+|-------|-------|
+| URL | [{{ digest.html_url }}]({{ digest.html_url }}) |
+| Stars | {{ digest.stars }} |
+| Language | {{ digest.language or "N/A" }} |
+| License | {{ digest.license or "N/A" }} |
+| Score | {{ "%.3f" | format(digest.score) }} |
+| Use-cases | {{ digest.use_case_tags | join(", ") or "—" }} |
+| Topics | {{ digest.topics | join(", ") or "—" }} |
+
+**Description:** {{ digest.description or "_No description provided._" }}
+
+{% if digest.readme_snippet %}
+**README excerpt:**
+> {{ digest.readme_snippet }}
+{% endif %}
+
+**Evidence found in {{ digest.matched_files | length }} file(s):**
+{% for f in digest.matched_files %}
+- `{{ f }}`
+{% endfor %}
+
+**Evidence counts:** imports={{ digest.evidence_summary.imports }}, decorators={{ digest.evidence_summary.decorators }}, function calls={{ digest.evidence_summary.function_calls }}
