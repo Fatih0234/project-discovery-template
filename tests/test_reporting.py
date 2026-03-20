@@ -1,9 +1,10 @@
+import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from libexplorer.models import RepoDigest
+from libexplorer.models import CodeSnippet, RepoCategory, RepoDigest
 
 
 @pytest.fixture
@@ -22,6 +23,15 @@ def sample_digests() -> list[RepoDigest]:
             readme_snippet="Uses tenacity to handle transient failures gracefully.",
             matched_files=["src/client.py", "src/worker.py"],
             use_case_tags=["retry", "web"],
+            repo_category=RepoCategory.APP,
+            code_snippets=[
+                CodeSnippet(
+                    file_path="src/client.py",
+                    line_no=5,
+                    snippet="import tenacity\n\n@tenacity.retry\ndef call_api(): pass",
+                    match_type="import",
+                )
+            ],
         ),
         RepoDigest(
             full_name="bob/async-scraper",
@@ -36,16 +46,17 @@ def sample_digests() -> list[RepoDigest]:
             readme_snippet=None,
             matched_files=["scraper/core.py"],
             use_case_tags=["async", "web"],
+            repo_category=RepoCategory.APP,
+            code_snippets=[],
         ),
     ]
 
 
 def test_jinja2_render_produces_markdown(sample_digests, tmp_path, monkeypatch):
     from libexplorer import reporting
-    from libexplorer.config import TEMPLATES_DIR
 
-    # Patch report output dir to tmp
     monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
 
     out = reporting.render("tenacity", sample_digests, "## Synthesis\nGreat library.")
     assert out.exists()
@@ -62,6 +73,7 @@ def test_repo_names_appear_in_table(sample_digests, tmp_path, monkeypatch):
     from libexplorer import reporting
 
     monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
 
     out = reporting.render("tenacity", sample_digests, "synthesis text")
     content = out.read_text()
@@ -74,6 +86,7 @@ def test_readme_snippet_included_when_present(sample_digests, tmp_path, monkeypa
     from libexplorer import reporting
 
     monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
 
     out = reporting.render("tenacity", sample_digests, "")
     content = out.read_text()
@@ -85,6 +98,7 @@ def test_synthesis_included_verbatim(sample_digests, tmp_path, monkeypatch):
     from libexplorer import reporting
 
     monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
     synthesis = "## My Synthesis\nSome unique text 12345."
 
     out = reporting.render("tenacity", sample_digests, synthesis)
@@ -97,8 +111,51 @@ def test_empty_digests_renders_without_error(tmp_path, monkeypatch):
     from libexplorer import reporting
 
     monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
 
     out = reporting.render("somelib", [], "No repos found.")
     assert out.exists()
     content = out.read_text()
     assert "somelib" in content
+
+
+def test_code_snippets_appear_in_report(sample_digests, tmp_path, monkeypatch):
+    from libexplorer import reporting
+
+    monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
+
+    out = reporting.render("tenacity", sample_digests, "")
+    content = out.read_text()
+
+    assert "src/client.py" in content
+    assert "import tenacity" in content
+
+
+def test_rejected_candidates_appear_in_appendix(sample_digests, tmp_path, monkeypatch):
+    from libexplorer import reporting
+
+    monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
+
+    # Write a rejected_candidates.json in tmp_path
+    rejected = [{"full_name": "charlie/readme-only", "stars": 50, "rejection_reason": "no_code_evidence"}]
+    (tmp_path / "rejected_candidates.json").write_text(json.dumps(rejected))
+
+    out = reporting.render("tenacity", sample_digests, "synthesis")
+    content = out.read_text()
+
+    assert "charlie/readme-only" in content
+    assert "no_code_evidence" in content
+
+
+def test_category_shown_in_report(sample_digests, tmp_path, monkeypatch):
+    from libexplorer import reporting
+
+    monkeypatch.setattr(reporting, "lib_report_dir", lambda lib: tmp_path)
+    monkeypatch.setattr(reporting, "lib_data_dir", lambda lib: tmp_path)
+
+    out = reporting.render("tenacity", sample_digests, "")
+    content = out.read_text()
+
+    assert "app" in content

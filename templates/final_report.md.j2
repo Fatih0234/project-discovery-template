@@ -13,27 +13,76 @@ It covers common use-cases, code patterns, quality signals, and learning recomme
 
 ## Quick Reference Table
 
-| Repo | Stars | Score | Use-cases |
-|------|-------|-------|-----------|
+| Repo | Stars | Score | Category | Use-cases |
+|------|-------|-------|----------|-----------|
 {% for d in digests %}
-| [{{ d.full_name }}]({{ d.html_url }}) | {{ d.stars }} | {{ "%.3f" | format(d.score) }} | {{ d.use_case_tags | join(", ") or "—" }} |
+| [{{ d.full_name }}]({{ d.html_url }}) | {{ d.stars }} | {{ "%.3f" | format(d.score) }} | {{ d.repo_category.value if d.repo_category else "unknown" }} | {{ d.use_case_tags | join(", ") or "—" }} |
 {% endfor %}
 
 ---
 
-## Per-Repository Analysis
+## Best Examples for Learning
 
-{% for digest in digests %}
+{% set app_digests = digests | selectattr("repo_category", "equalto", "app") | list %}
+{% set tutorial_digests = digests | selectattr("repo_category", "equalto", "tutorial") | list %}
+{% set learning_digests = (app_digests + tutorial_digests) | sort(attribute="score", reverse=True) %}
+{% if learning_digests %}
+{% for digest in learning_digests %}
 {% include "repo_card.md.j2" %}
 
 ---
 {% endfor %}
+{% else %}
+_No repos classified as apps or tutorials in this run._
+
+---
+{% endif %}
+
+## Wrappers and Extensions
+
+{% set wrapper_digests = digests | selectattr("repo_category", "equalto", "wrapper") | list %}
+{% if wrapper_digests %}
+{% for digest in wrapper_digests %}
+{% include "repo_card.md.j2" %}
+
+---
+{% endfor %}
+{% else %}
+_No wrapper/extension repos identified._
+
+---
+{% endif %}
+
+## Other Repos
+
+{% set other_digests = digests | rejectattr("repo_category", "in", ["app", "tutorial", "wrapper"]) | list %}
+{% if other_digests %}
+{% for digest in other_digests %}
+{% include "repo_card.md.j2" %}
+
+---
+{% endfor %}
+{% endif %}
 
 {% include "comparison_report.md.j2" %}
 
 ---
 
 {{ synthesis }}
+
+---
+
+{% if rejected %}
+## Appendix: Reviewed but Excluded
+
+The following {{ rejected | length }} repo(s) were discovered but excluded because they had no direct code imports of `{{ library }}` (README-only mentions are not sufficient evidence).
+
+| Repo | Stars | Reason |
+|------|-------|--------|
+{% for r in rejected %}
+| {{ r.full_name }} | {{ r.stars }} | {{ r.rejection_reason }} |
+{% endfor %}
+{% endif %}
 
 ---
 

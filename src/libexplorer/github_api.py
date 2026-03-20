@@ -39,6 +39,7 @@ def search_repos(
     min_stars: int = 10,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
+    """Search repos whose name or description mentions the library."""
     query = f"{library} language:{language} stars:>={min_stars}"
     results: list[dict] = []
     page = 1
@@ -56,6 +57,52 @@ def search_repos(
                 break
             page += 1
     return results[:limit]
+
+
+def search_repos_by_topic(
+    library: str,
+    language: str = "python",
+    min_stars: int = 10,
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    """Search repos that have the library name as a GitHub topic tag."""
+    query = f"topic:{library} language:{language} stars:>={min_stars}"
+    with httpx.Client() as client:
+        data = _get(
+            client,
+            f"{_BASE}/search/repositories",
+            params={"q": query, "sort": "stars", "order": "desc", "per_page": min(limit, 30)},
+        )
+    if not data:
+        return []
+    return data.get("items", [])[:limit]
+
+
+def search_repos_by_code(
+    library: str,
+    language: str = "python",
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    """Search repos via GitHub code search for direct import statements."""
+    query = f"import {library} language:{language}"
+    with httpx.Client() as client:
+        data = _get(
+            client,
+            f"{_BASE}/search/code",
+            params={"q": query, "per_page": min(limit, 30)},
+        )
+    if not data:
+        return []
+    # Code search returns file items; extract unique repo objects
+    seen: set[str] = set()
+    repos: list[dict] = []
+    for item in data.get("items", []):
+        repo = item.get("repository", {})
+        full_name = repo.get("full_name", "")
+        if full_name and full_name not in seen:
+            seen.add(full_name)
+            repos.append(repo)
+    return repos[:limit]
 
 
 def get_repo_metadata(full_name: str) -> dict | None:

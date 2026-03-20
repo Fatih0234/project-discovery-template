@@ -7,6 +7,7 @@
 | Language | {{ digest.language or "N/A" }} |
 | License | {{ digest.license or "N/A" }} |
 | Score | {{ "%.3f" | format(digest.score) }} |
+| Category | {{ digest.repo_category.value if digest.repo_category else "unknown" }} |
 | Use-cases | {{ digest.use_case_tags | join(", ") or "—" }} |
 | Topics | {{ digest.topics | join(", ") or "—" }} |
 
@@ -23,3 +24,13 @@
 {% endfor %}
 
 **Evidence counts:** imports={{ digest.evidence_summary.imports }}, decorators={{ digest.evidence_summary.decorators }}, function calls={{ digest.evidence_summary.function_calls }}
+
+{% if digest.code_snippets %}
+**Code snippets:**
+{% for s in digest.code_snippets[:3] %}
+`{{ s.file_path }}` (line {{ s.line_no }}, {{ s.match_type }}):
+```python
+{{ s.snippet }}
+```
+{% endfor %}
+{% endif %}

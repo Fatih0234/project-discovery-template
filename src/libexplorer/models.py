@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from enum import Enum
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+
+class RepoCategory(str, Enum):
+    LIBRARY_SELF = "library_self"
+    WRAPPER = "wrapper"
+    TUTORIAL = "tutorial"
+    APP = "app"
+    UNKNOWN = "unknown"
+
+
+class CodeSnippet(BaseModel):
+    file_path: str
+    line_no: int
+    snippet: str
+    match_type: Literal["import", "decorator", "call"]
 
 
 class CandidateRepo(BaseModel):
@@ -26,6 +42,7 @@ class VerifiedRepo(BaseModel):
     function_call_count: int = 0
     matched_files: list[str] = Field(default_factory=list)
     readme_snippet: str | None = None
+    code_snippets: list[CodeSnippet] = Field(default_factory=list)
 
     @property
     def total_evidence(self) -> int:
@@ -51,6 +68,8 @@ class RepoDigest(BaseModel):
     readme_snippet: str | None
     matched_files: list[str]
     use_case_tags: list[str] = Field(default_factory=list)
+    code_snippets: list[CodeSnippet] = Field(default_factory=list)
+    repo_category: RepoCategory = RepoCategory.UNKNOWN
 
 
 class AnalysisConfig(BaseModel):

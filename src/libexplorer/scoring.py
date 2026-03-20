@@ -25,7 +25,7 @@ def _evidence_score(v: VerifiedRepo) -> float:
     total = v.total_evidence
     if total == 0:
         return 0.0
-    return min(1.0, total / 20.0)
+    return min(1.0, total / 50.0)
 
 
 def _learnability_score(v: VerifiedRepo) -> float:
@@ -33,7 +33,7 @@ def _learnability_score(v: VerifiedRepo) -> float:
     n = len(v.matched_files)
     if n == 0:
         return 0.0
-    return min(1.0, n / 5.0)
+    return min(1.0, n / 15.0)
 
 
 def _quality_score(v: VerifiedRepo) -> float:
@@ -70,6 +70,10 @@ def _popularity_score(v: VerifiedRepo) -> float:
 
 
 def _readme_score(v: VerifiedRepo) -> float:
+    # Only award README score if the repo also has real code imports.
+    # A README-only mention (no imports) is not reliable usage evidence.
+    if v.import_count == 0:
+        return 0.0
     return 1.0 if v.readme_snippet else 0.0
 
 
@@ -99,7 +103,32 @@ def score(
         raw = json.loads(cache_path.read_text())
         return [ScoredRepo.model_validate(r) for r in raw]
 
-    scored = sorted([score_repo(v) for v in verified], key=lambda s: s.score, reverse=True)
+    # Hard evidence gate: repos with zero code imports are rejected before scoring.
+    accepted = [v for v in verified if v.import_count >= 1]
+    rejected = [v for v in verified if v.import_count == 0]
+
+    if rejected:
+        rejected_path = data_dir / "rejected_candidates.json"
+        rejected_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "full_name": v.candidate.full_name,
+                        "stars": v.candidate.stargazers_count,
+                        "import_count": v.import_count,
+                        "rejection_reason": "no_code_evidence",
+                    }
+                    for v in rejected
+                ],
+                indent=2,
+            )
+        )
+        console.print(
+            f"[yellow]Rejected {len(rejected)} repos with no code evidence "
+            f"→ {rejected_path}[/yellow]"
+        )
+
+    scored = sorted([score_repo(v) for v in accepted], key=lambda s: s.score, reverse=True)
 
     cache_path.write_text(
         json.dumps([s.model_dump(mode="json") for s in scored], indent=2)

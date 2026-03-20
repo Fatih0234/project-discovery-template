@@ -37,22 +37,38 @@ Start with **{top.full_name if top else 'any of the above'}** — it has readabl
 """
 
 
+def _format_digest_for_llm(d: RepoDigest) -> str:
+    lines = [
+        f"**{d.full_name}** (score={d.score:.2f}, stars={d.stars}, category={d.repo_category.value})",
+        f"Description: {d.description or 'N/A'}",
+        f"Use-case tags: {', '.join(d.use_case_tags) or 'N/A'}",
+        f"Matched files: {', '.join(d.matched_files[:5]) or 'N/A'}",
+    ]
+    if d.code_snippets:
+        lines.append("Code evidence:")
+        for s in d.code_snippets[:3]:
+            lines.append(f"  [{s.file_path}:{s.line_no}] ({s.match_type})")
+            lines.append(f"  ```python\n{s.snippet}\n  ```")
+    return "\n".join(lines)
+
+
 def _github_models_summary(library: str, digests: list[RepoDigest]) -> str:
     import httpx
 
-    digest_text = "\n\n".join(
-        f"**{d.full_name}** (score={d.score:.2f}, stars={d.stars})\n"
-        f"Description: {d.description or 'N/A'}\n"
-        f"Use-case tags: {', '.join(d.use_case_tags) or 'N/A'}\n"
-        f"Matched files: {', '.join(d.matched_files[:5]) or 'N/A'}"
-        for d in digests
-    )
+    digest_text = "\n\n".join(_format_digest_for_llm(d) for d in digests)
 
     prompt = (
         f"You are a senior engineer writing a concise synthesis for a library-usage report.\n\n"
-        f"Library: {library}\n\nTop repos:\n{digest_text}\n\n"
-        f"Write a 300-word synthesis covering: common use-cases, patterns, tips for juniors, "
-        f"mistakes to avoid, and 3 next-project ideas. Use markdown headers."
+        f"Library: {library}\n\nTop repos with code evidence:\n{digest_text}\n\n"
+        f"Write a 400-word synthesis covering: common use-cases, patterns, tips for juniors, "
+        f"mistakes to avoid, and 3 next-project ideas. Use markdown headers.\n\n"
+        f"IMPORTANT RULES:\n"
+        f"- Every claim about how {library} is used must cite a specific repo name and file path "
+        f"from the evidence above.\n"
+        f"- If you cannot cite evidence for a claim, write: "
+        f"'No direct code evidence available for this claim.'\n"
+        f"- Do not infer usage patterns from descriptions or topic tags alone.\n"
+        f"- Do not invent file names or snippet content."
     )
 
     r = httpx.post(
@@ -63,7 +79,7 @@ def _github_models_summary(library: str, digests: list[RepoDigest]) -> str:
         },
         json={
             "model": GITHUB_MODELS_MODEL,
-            "max_tokens": 800,
+            "max_tokens": 1200,
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=60,
